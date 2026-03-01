@@ -1,4 +1,6 @@
-# Hospital Management System
+# QuantumMed Center
+
+![QuantumMed Center](static/images/hos.jpg)
 
 A simple Flask-based hospital management website with the following features:
 
