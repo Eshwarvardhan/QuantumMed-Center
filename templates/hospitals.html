@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Hospital Directory</h2>
+<p class="text-muted">Dedicated hospital details page with emergency contact and services.</p>
+
+<div class="row">
+    {% for h in hospitals %}
+    <div class="col-md-4 mb-3">
+        <div class="card h-100 border-danger">
+            <img
+                src="{{ h.image_url }}"
+                class="card-img-top"
+                alt="{{ h.name }} image"
+                style="height: 190px; object-fit: cover;"
+                onerror="this.onerror=null;this.src='https://loremflickr.com/1600/900/hospital,building,exterior?lock={{ 950 + loop.index }}';"
+            >
+            <div class="card-body">
+                <h5 class="card-title mb-2">{{ h.name }}</h5>
+                <p class="card-text mb-1"><strong>Address:</strong> {{ h.address }}, {{ h.city }}, {{ h.state }}</p>
+                <p class="card-text mb-1"><strong>Hospital Phone:</strong> {{ h.phone }}</p>
+                <p class="card-text mb-1"><strong>Emergency Helpline:</strong> {{ h.emergency_phone }}</p>
+                <p class="card-text mb-1"><strong>Services:</strong> {{ h.services }}</p>
+                <p class="card-text mb-1"><strong>Availability:</strong> {{ h.availability }}</p>
+                <p class="card-text mb-0"><strong>Ambulance ETA:</strong> {{ h.ambulance_eta }}</p>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

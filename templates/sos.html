@@ -1,0 +1,644 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Emergency SOS</h2>
+<p>If an accident is detected, system waits 10 seconds for patient response. No response means ambulance dispatch.</p>
+<p><a class="btn btn-outline-danger btn-sm" href="{{ url_for('emergency_guide') }}">Open Step-by-Step Emergency Guide</a></p>
+<p><a class="btn btn-outline-primary btn-sm" href="{{ url_for('hospitals') }}">Open Dedicated Hospital Details Page</a></p>
+
+<div class="mb-3">
+    <button id="send-location" class="btn btn-danger">Activate Emergency SOS</button>
+    <button id="mark-safe" class="btn btn-warning ml-2" style="display:none;">I'm Safe (False Alert)</button>
+    <button id="start-voice-guide" class="btn btn-primary ml-2" style="display:none;">Start Voice Guidance</button>
+    <button id="stop-voice-guide" class="btn btn-secondary ml-2" style="display:none;">Ambulance Arrived / Stop Guidance</button>
+    <button id="next-step" class="btn btn-outline-primary ml-2" style="display:none;">Completed / Next Step</button>
+    <button id="repeat-step" class="btn btn-outline-dark ml-2" style="display:none;">Repeat Step</button>
+    <button id="test-voice" class="btn btn-outline-info ml-2">Test Voice</button>
+</div>
+
+<div class="form-row mb-3">
+    <div class="col-md-4 mb-2">
+        <label for="guide-language">Guidance Language</label>
+        <select id="guide-language" class="form-control">
+            <option value="en">English</option>
+            <option value="hi">Hindi</option>
+            <option value="te">Telugu</option>
+            <option value="ta">Tamil</option>
+            <option value="kn">Kannada</option>
+            <option value="mr">Marathi</option>
+            <option value="bn">Bengali</option>
+        </select>
+    </div>
+    <div class="col-md-8 mb-2 d-flex align-items-end">
+        <button id="detect-language" class="btn btn-outline-dark mr-2">Detect Language From Voice</button>
+        <small class="text-muted">Say language name, then use the shown completion command after each step.</small>
+    </div>
+</div>
+
+<div id="sos-status" class="alert alert-secondary">SOS not activated.</div>
+<div id="voice-guide-status" class="alert alert-light">Voice guidance is off.</div>
+
+<script>
+let activeAlertId = null;
+let statusPoll = null;
+let voiceGuideRunning = false;
+let voiceStepIndex = 0;
+let speechReady = false;
+let activeVoice = null;
+let currentLang = 'en';
+let waitingForCompletion = false;
+let commandRecognition = null;
+let sosRequestInFlight = false;
+let lastKnownLocation = null;
+let locationWarmupInFlight = false;
+
+const languageMeta = {
+  en: {label: 'English', ttsLang: 'en-IN', sttLang: 'en-IN'},
+  hi: {label: 'Hindi', ttsLang: 'hi-IN', sttLang: 'hi-IN'},
+  te: {label: 'Telugu', ttsLang: 'te-IN', sttLang: 'te-IN'},
+  ta: {label: 'Tamil', ttsLang: 'ta-IN', sttLang: 'ta-IN'},
+  kn: {label: 'Kannada', ttsLang: 'kn-IN', sttLang: 'kn-IN'},
+  mr: {label: 'Marathi', ttsLang: 'mr-IN', sttLang: 'mr-IN'},
+  bn: {label: 'Bengali', ttsLang: 'bn-IN', sttLang: 'bn-IN'}
+};
+
+const guideSteps = {
+  en: [
+    'Stay calm. Keep the area safe from traffic, fire, and electricity.',
+    'Check response. Tap the shoulder and ask: Are you okay?',
+    'If not breathing normally, start CPR at 100 to 120 compressions per minute.',
+    'If severe bleeding is present, apply firm direct pressure with a clean cloth.',
+    'If head, neck, or spine injury is suspected, do not move the person.',
+    'If breathing but unconscious, place in recovery position and keep airway clear.',
+    'Keep the person warm and monitor breathing continuously.',
+    'Do not give food, water, or medicine to an unconscious person.'
+  ],
+  hi: [
+    'शांत रहें। जगह को ट्रैफिक, आग और बिजली से सुरक्षित रखें।',
+    'प्रतिक्रिया जांचें। कंधा थपथपाकर पूछें: क्या आप ठीक हैं?',
+    'अगर सांस सामान्य नहीं है, तुरंत सीपीआर शुरू करें, 100 से 120 कंप्रेशन प्रति मिनट।',
+    'अगर ज्यादा खून बह रहा है, साफ कपड़े से सीधे मजबूत दबाव दें।',
+    'सिर, गर्दन या रीढ़ की चोट का शक हो तो मरीज को न हिलाएं।',
+    'अगर सांस चल रही है पर बेहोश है, तो रिकवरी पोजिशन में करवट दिलाएं।',
+    'मरीज को गर्म रखें और सांस लगातार देखते रहें।',
+    'बेहोश व्यक्ति को खाना, पानी या दवा न दें।'
+  ],
+  te: [
+    'శాంతంగా ఉండండి. ట్రాఫిక్, అగ్ని, విద్యుత్ నుంచి ప్రదేశం సురక్షితంగా ఉంచండి.',
+    'స్పందన ఉందా చూడండి. భుజం తట్టి బాగున్నారా అని అడగండి.',
+    'సాధారణ శ్వాస లేకపోతే వెంటనే సీపీఆర్ ప్రారంభించండి, నిమిషానికి 100 నుండి 120 కంప్రెషన్లు ఇవ్వండి.',
+    'ఎక్కువ రక్తస్రావం ఉంటే శుభ్రమైన గుడ్డతో బలంగా నేరుగా ఒత్తిడి చేయండి.',
+    'తల, మెడ, వెన్నెముక గాయం అనుమానం ఉంటే వ్యక్తిని కదపవద్దు.',
+    'శ్వాస ఉంది కానీ స్పృహలేకపోతే రికవరీ పోజిషన్‌లో పక్కకు తిప్పండి.',
+    'వ్యక్తిని వెచ్చగా ఉంచి శ్వాసను నిరంతరం గమనించండి.',
+    'స్పృహలేని వ్యక్తికి ఆహారం, నీరు, మందులు ఇవ్వవద్దు.'
+  ],
+  ta: [
+    'அமைதியாக இருங்கள். இடத்தை போக்குவரத்து, தீ, மின்சாரம் ஆகியவற்றிலிருந்து பாதுகாக்கவும்.',
+    'நபர் பதில் அளிக்கிறாரா பார்க்கவும். தோளில் தட்டிக் கேளுங்கள்: நீங்கள் ஓகேவா?',
+    'சுவாசம் சரியாக இல்லையெனில் உடனே CPR தொடங்குங்கள், நிமிடத்திற்கு 100 முதல் 120 கம்ப்ரெஷன் செய்யவும்.',
+    'அதிக இரத்தப்போக்கு இருந்தால் சுத்தமான துணியால் நேரடி அழுத்தம் கொடுக்கவும்.',
+    'தலை, கழுத்து அல்லது முதுகுதண்டு காயம் சந்தேகம் இருந்தால் நபரை நகர்த்த வேண்டாம்.',
+    'சுவாசம் இருந்தும் மயக்கம் இருந்தால் ரிகவரி நிலையில் பக்கமாக திருப்பவும்.',
+    'நபரை சூடாக வைத்து சுவாசத்தை தொடர்ந்து கண்காணிக்கவும்.',
+    'மயக்கம் உள்ள நபருக்கு உணவு, தண்ணீர் அல்லது மருந்து கொடுக்க வேண்டாம்.'
+  ]
+};
+
+Object.assign(guideSteps, {
+  kn: [
+    'Shantavagiri. Sthalavannu traffic, benki mattu vidyut ninda surakshitavagi iri.',
+    'Pratikriye nodi. Bhuja tatti keli: neevu sari iddeera?',
+    'Samanaya usiru illadiddare, takshana CPR prarambhisi, nimishakke 100-120 compressions kodi.',
+    'Heccu raktasrava iddare, shuddha batteyinda neravagi ottada kodi.',
+    'Tale, kattu athava spine gaaya anumana iddare vyaktiyannu kadisabedi.',
+    'Usiru ide adare behosh iddare, recovery position alli irisi.',
+    'Vyaktiyannu bisiyagi ittu usirannu nirantara gamanisi.',
+    'Behosh vyaktige ahara, neeru athava aushadhi kodabedi.'
+  ],
+  mr: [
+    'Shant raha. Jaga rahadari, aag ani vijepasun surakshit theva.',
+    'Pratisad aahe ka paha. Khandyavar halke tap kara ani vichara: tumhi thik aahat ka?',
+    'Niyamit shwas nasel tar tatkal CPR suru kara, minutala 100-120 compressions dya.',
+    'Jast raktasrav asel tar swachha kapdane thos dab dya.',
+    'Doka, maan ki spine chot asel tar vyaktila halvu naka.',
+    'Shwas aahe pan behosh asel tar recovery position madhe theva.',
+    'Vyaktila ubadar theva ani shwas nirantar paha.',
+    'Behosh vyaktila khane, pani ki aushadh deu naka.'
+  ],
+  bn: [
+    'Shanto thakun. Jaygata traffic, agun ebong bidyut theke nirapod rakhun.',
+    'Protikriya ache ki dekhen. Kandhe halka chap diye jiggesh korun: apni thik achhen?',
+    'Shabhavik shash na hole, tatkhonik CPR shuru korun, minute 100-120 compressions din.',
+    'Jodi beshi rokto porte thake, porishkar kapor diye zor chap din.',
+    'Matha, gola ba spine injury sandeho hole byaktike naraben na.',
+    'Shash ache kintu behosh hole recovery position e pashe ghuriye din.',
+    'Byaktike gorom rakhun ebong shash nirontor dekhen.',
+    'Behosh byaktike khabar, pani ba oshudh deben na.'
+  ]
+});
+
+const extraCompletionPrompts = {
+  hi: 'Yeh step pura hone par bolo: ho gaya.',
+  te: 'Ee step ayyaka cheppu: ayipoyindi.',
+  ta: 'Intha step mudincha udane sollunga: mudinjathu.',
+  kn: 'Ee hanta mugida mele heli: mugitu.',
+  mr: 'Ha step purna zalyavar mhana: zale.',
+  bn: 'Ei step shesh hole bolun: shesh.'
+};
+
+const extraDoneMessages = {
+  kn: 'Ella emergency guidance hantagalu mugidive. Ambulance baruva varegu gamanisi.',
+  mr: 'Sarv emergency guidance steps purn zale. Ambulance yeiparyant laksh theva.',
+  bn: 'Shob emergency guide step shesh. Ambulance asha porjonto nojor rakhun.'
+};
+
+const extraVoiceSamples = {
+  hi: 'Voice test successful. Har step ke baad ho gaya boliye.',
+  te: 'Voice test successful. Prati step tarvata ayipoyindi ani cheppandi.',
+  ta: 'Voice test successful. Ovvoru step mudincha udane mudinjathu sollunga.',
+  kn: 'Voice test successful. Prati hanta mugida mele mugitu heli.',
+  mr: 'Voice test successful. Pratyek step nantar zale mhana.',
+  bn: 'Voice test successful. Protiti step er pore shesh bolun.'
+};
+
+const preferredCompleteWord = {
+  en: 'completed',
+  hi: 'ho gaya',
+  te: 'ayipoyindi',
+  ta: 'mudinjathu',
+  kn: 'mugitu',
+  mr: 'zale',
+  bn: 'shesh'
+};
+
+function getCompleteHint() {
+  return preferredCompleteWord[currentLang] || 'completed';
+}
+
+const commandWords = {
+  completed: ['completed', 'complete', 'done', 'next', 'ho gaya', 'ayipoyindi', 'mudinchindi', 'mudinjathu', 'mugitu', 'zale', 'shesh'],
+  repeat: ['repeat', 'again', 'once more', 'malli', 'phir', 'dobara', 'marala', 'matte', 'parat', 'abar'],
+  stop: ['stop', 'ambulance arrived', 'enough', 'aapu', 'band karo', 'niruthu', 'nillisi', 'thamba', 'thamun']
+};
+
+function setStatus(message, type='secondary') {
+  const box = document.getElementById('sos-status');
+  box.className = `alert alert-${type}`;
+  box.innerText = message;
+}
+
+function setVoiceGuideStatus(message, type='light') {
+  const box = document.getElementById('voice-guide-status');
+  box.className = `alert alert-${type}`;
+  box.innerText = message;
+}
+
+function containsAny(text, words) {
+  const t = (text || '').toLowerCase();
+  return words.some(w => t.includes(w.toLowerCase()));
+}
+
+function detectLangFromText(text) {
+  const t = (text || '').trim();
+  const low = t.toLowerCase();
+  if (/[\u0C00-\u0C7F]/.test(t) || low.includes('telugu')) return 'te';
+  if (/[\u0900-\u097F]/.test(t) || low.includes('hindi')) return 'hi';
+  if (/[\u0B80-\u0BFF]/.test(t) || low.includes('tamil')) return 'ta';
+  if (/[\u0C80-\u0CFF]/.test(t) || low.includes('kannada')) return 'kn';
+  if (low.includes('marathi')) return 'mr';
+  if (/[\u0980-\u09FF]/.test(t) || low.includes('bengali') || low.includes('bangla')) return 'bn';
+  if (low.includes('english')) return 'en';
+  return null;
+}
+
+function pickVoiceFor(langCode) {
+  if (!('speechSynthesis' in window)) return null;
+  const voices = speechSynthesis.getVoices() || [];
+  if (!voices.length) return null;
+  const prefix = languageMeta[langCode].ttsLang.split('-')[0].toLowerCase();
+  return voices.find(v => (v.lang || '').toLowerCase().startsWith(prefix)) || null;
+}
+
+function unlockSpeech() {
+  if (!('speechSynthesis' in window)) {
+    setVoiceGuideStatus('Voice is not supported in this browser.', 'danger');
+    return false;
+  }
+  activeVoice = pickVoiceFor(currentLang);
+  if (!activeVoice && currentLang !== 'en') {
+    setVoiceGuideStatus(
+      `No installed ${languageMeta[currentLang].label} voice found on this device. Install a ${languageMeta[currentLang].label} system voice for best output.`,
+      'warning'
+    );
+  }
+  const warmup = new SpeechSynthesisUtterance('ready');
+  warmup.volume = 0.01;
+  warmup.lang = languageMeta[currentLang].ttsLang;
+  if (activeVoice) warmup.voice = activeVoice;
+  speechSynthesis.cancel();
+  speechSynthesis.speak(warmup);
+  speechReady = true;
+  return true;
+}
+
+function speakNow(text, onEnd=null) {
+  if (!('speechSynthesis' in window) || !speechReady) return false;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = languageMeta[currentLang].ttsLang;
+  u.rate = 0.95;
+  activeVoice = pickVoiceFor(currentLang) || activeVoice;
+  if (activeVoice) u.voice = activeVoice;
+  if (onEnd) u.onend = onEnd;
+  u.onerror = () => setVoiceGuideStatus('Voice playback failed. Click Test Voice.', 'danger');
+  speechSynthesis.speak(u);
+  return true;
+}
+
+function getCurrentSteps() {
+  return guideSteps[currentLang] || guideSteps.en;
+}
+
+function getCompletionPrompt() {
+  const prompts = {
+    en: 'Say completed when this step is done.',
+    hi: 'यह स्टेप पूरा होने पर बोलें: completed',
+    te: 'ఈ స్టెప్ పూర్తయ్యాక completed అని చెప్పండి.',
+    ta: 'இந்த ஸ்டெப் முடிந்ததும் completed என்று சொல்லுங்கள்.'
+  };
+  return extraCompletionPrompts[currentLang] || prompts[currentLang] || prompts.en;
+}
+
+function stopCommandListening() {
+  if (commandRecognition) {
+    try { commandRecognition.onresult = null; commandRecognition.onerror = null; commandRecognition.onend = null; commandRecognition.stop(); } catch (e) {}
+    commandRecognition = null;
+  }
+}
+
+function startCommandListening() {
+  const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!Rec) {
+    setVoiceGuideStatus('Voice command not supported. Use "Completed / Next Step" button.', 'warning');
+    return;
+  }
+  stopCommandListening();
+  commandRecognition = new Rec();
+  commandRecognition.lang = languageMeta[currentLang].sttLang;
+  commandRecognition.interimResults = false;
+  commandRecognition.maxAlternatives = 1;
+  commandRecognition.onresult = (event) => {
+    const heard = event.results[0][0].transcript || '';
+    handleCommand(heard);
+  };
+  commandRecognition.onerror = () => {
+    if (voiceGuideRunning && waitingForCompletion) {
+      setVoiceGuideStatus(`Could not hear command. Say "${getCompleteHint()}" or click Next Step.`, 'warning');
+    }
+  };
+  commandRecognition.onend = () => {
+    if (voiceGuideRunning && waitingForCompletion) {
+      setTimeout(startCommandListening, 700);
+    }
+  };
+  commandRecognition.start();
+}
+
+function speakCurrentStep() {
+  if (!voiceGuideRunning) return;
+  const steps = getCurrentSteps();
+  if (voiceStepIndex >= steps.length) {
+    let doneMsg = {
+      en: 'All emergency guidance steps completed. Continue monitoring until ambulance arrives.',
+      hi: 'सभी गाइडेंस स्टेप पूरे हुए। एंबुलेंस आने तक निगरानी जारी रखें।',
+      te: 'అన్ని సూచనలు పూర్తయ్యాయి. అంబులెన్స్ వచ్చే వరకు పర్యవేక్షణ కొనసాగించండి.',
+      ta: 'அனைத்து வழிமுறைகளும் முடிந்தது. ஆம்புலன்ஸ் வரும் வரை கண்காணிக்கவும்.'
+    }[currentLang];
+    doneMsg = extraDoneMessages[currentLang] || doneMsg;
+    waitingForCompletion = false;
+    speakNow(doneMsg);
+    setVoiceGuideStatus(doneMsg, 'success');
+    return;
+  }
+
+  const stepText = steps[voiceStepIndex];
+  waitingForCompletion = true;
+  const stepPrefixMap = {
+    en: 'Step',
+    hi: '\u0938\u094d\u091f\u0947\u092a',
+    te: '\u0c38\u0c4d\u0c1f\u0c46\u0c2a\u0c4d',
+    ta: '\u0bb8\u0bcd\u0b9f\u0bc6\u0baa\u0bcd',
+    kn: 'Hanta',
+    mr: 'Step',
+    bn: 'Dhap'
+  };
+  const stepPrefix = stepPrefixMap[currentLang] || 'Step';
+  const full = `${stepPrefix} ${voiceStepIndex + 1}. ${stepText}. ${getCompletionPrompt()}`;
+  setVoiceGuideStatus(`Language: ${languageMeta[currentLang].label}. Step ${voiceStepIndex + 1}/${steps.length}: ${stepText}`, 'info');
+  const ok = speakNow(full, () => {
+    if (voiceGuideRunning && waitingForCompletion) startCommandListening();
+  });
+  if (!ok) setVoiceGuideStatus('Voice blocked. Click Test Voice and Start again.', 'danger');
+}
+
+function nextStep() {
+  if (!voiceGuideRunning) return;
+  waitingForCompletion = false;
+  stopCommandListening();
+  voiceStepIndex += 1;
+  speakCurrentStep();
+}
+
+function repeatStep() {
+  if (!voiceGuideRunning) return;
+  waitingForCompletion = false;
+  stopCommandListening();
+  speakCurrentStep();
+}
+
+function handleCommand(text) {
+  if (!voiceGuideRunning) return;
+  if (containsAny(text, commandWords.completed)) {
+    setVoiceGuideStatus(`Command detected: "${text}" -> Next step`, 'success');
+    nextStep();
+    return;
+  }
+  if (containsAny(text, commandWords.repeat)) {
+    setVoiceGuideStatus(`Command detected: "${text}" -> Repeating step`, 'warning');
+    repeatStep();
+    return;
+  }
+  if (containsAny(text, commandWords.stop)) {
+    stopVoiceGuide();
+    return;
+  }
+  setVoiceGuideStatus(`Heard: "${text}". Say "${getCompleteHint()}" for next step, or "repeat".`, 'warning');
+}
+
+function startVoiceGuide() {
+  if (voiceGuideRunning) return;
+  if (!unlockSpeech()) return;
+  voiceGuideRunning = true;
+  voiceStepIndex = 0;
+  waitingForCompletion = false;
+  document.getElementById('start-voice-guide').style.display = 'none';
+  document.getElementById('stop-voice-guide').style.display = 'inline-block';
+  document.getElementById('next-step').style.display = 'inline-block';
+  document.getElementById('repeat-step').style.display = 'inline-block';
+  speakCurrentStep();
+}
+
+function stopVoiceGuide() {
+  voiceGuideRunning = false;
+  waitingForCompletion = false;
+  stopCommandListening();
+  if ('speechSynthesis' in window) speechSynthesis.cancel();
+  document.getElementById('stop-voice-guide').style.display = 'none';
+  document.getElementById('start-voice-guide').style.display = 'inline-block';
+  setVoiceGuideStatus('Voice guidance stopped.', 'secondary');
+}
+
+function setLanguage(langCode, announce=false) {
+  if (!languageMeta[langCode]) return;
+  currentLang = langCode;
+  document.getElementById('guide-language').value = currentLang;
+  activeVoice = pickVoiceFor(currentLang);
+  setVoiceGuideStatus(`Guidance language set to ${languageMeta[currentLang].label}.`, 'success');
+  if (announce && unlockSpeech()) {
+    speakNow(`Language changed to ${languageMeta[currentLang].label}`);
+  }
+}
+
+function detectLanguageByVoice() {
+  const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!Rec) {
+    setVoiceGuideStatus('Voice language detection not supported. Select manually.', 'danger');
+    return;
+  }
+  const r = new Rec();
+  r.lang = 'en-IN';
+  r.interimResults = false;
+  r.maxAlternatives = 1;
+  setVoiceGuideStatus('Listening for language name...', 'warning');
+  r.onresult = (event) => {
+    const text = event.results[0][0].transcript || '';
+    const detected = detectLangFromText(text);
+    if (detected) setLanguage(detected, true);
+    else setVoiceGuideStatus(`Could not detect language from "${text}".`, 'danger');
+  };
+  r.onerror = () => setVoiceGuideStatus('Could not detect by voice. Use dropdown.', 'danger');
+  r.start();
+}
+
+function pollStatus() {
+  if (!activeAlertId) return;
+  fetch(`/api/sos/status/${activeAlertId}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'awaiting_patient_response') {
+        setStatus(`Waiting for patient response (${data.remaining_seconds}s left). Nearest: ${data.hospital_name} (${data.hospital_phone})`, 'warning');
+      } else if (data.status === 'fake_alert') {
+        setStatus('Patient responded. Alert marked as fake. Ambulance not dispatched.', 'success');
+        clearInterval(statusPoll);
+        statusPoll = null;
+        document.getElementById('mark-safe').style.display = 'none';
+        stopVoiceGuide();
+      } else if (data.status === 'ambulance_dispatched') {
+        setStatus(`No patient response in 10 seconds. Ambulance dispatched from ${data.hospital_name} (${data.hospital_phone}).`, 'danger');
+        clearInterval(statusPoll);
+        statusPoll = null;
+        document.getElementById('mark-safe').style.display = 'none';
+        document.getElementById('start-voice-guide').style.display = 'inline-block';
+        document.getElementById('next-step').style.display = 'inline-block';
+        document.getElementById('repeat-step').style.display = 'inline-block';
+      } else {
+        setStatus(data.notes || 'Status updated.', 'info');
+      }
+    })
+    .catch(() => setStatus('Unable to fetch SOS status.', 'danger'));
+}
+
+function cacheCurrentLocation() {
+  if (!navigator.geolocation || locationWarmupInFlight) return;
+  locationWarmupInFlight = true;
+  navigator.geolocation.getCurrentPosition((position) => {
+    lastKnownLocation = {
+      lat: position.coords.latitude,
+      lon: position.coords.longitude,
+      at: Date.now()
+    };
+    locationWarmupInFlight = false;
+  }, () => {
+    locationWarmupInFlight = false;
+  }, {
+    enableHighAccuracy: false,
+    maximumAge: 120000,
+    timeout: 2500
+  });
+}
+
+function refreshActiveAlertLocation(alertId) {
+  if (!navigator.geolocation || !alertId) return;
+  navigator.geolocation.getCurrentPosition((position) => {
+    fetch('/api/sos/location', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        alert_id: alertId,
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude
+      })
+    }).then(r => r.json()).then(data => {
+      if (!data || data.status === 'error') return;
+      if (data.hospital_name && data.hospital_phone && activeAlertId === alertId) {
+        setStatus(`SOS active. Nearest: ${data.hospital_name} (${data.hospital_phone}).`, 'warning');
+      }
+    }).catch(() => {});
+  }, () => {}, {
+    enableHighAccuracy: true,
+    maximumAge: 0,
+    timeout: 8000
+  });
+}
+
+function dispatchSOS(lat, lon, refreshWithLiveLocation=false) {
+  fetch('/api/sos', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({latitude: lat, longitude: lon})
+  }).then(r => r.json()).then(data => {
+    if (data.alert_id) {
+      activeAlertId = data.alert_id;
+      document.getElementById('mark-safe').style.display = 'inline-block';
+      document.getElementById('start-voice-guide').style.display = 'inline-block';
+      document.getElementById('next-step').style.display = 'inline-block';
+      document.getElementById('repeat-step').style.display = 'inline-block';
+      setStatus(`SOS activated. Reply within ${data.verification_seconds}s if false alert.`, 'warning');
+      if (statusPoll) clearInterval(statusPoll);
+      statusPoll = setInterval(pollStatus, 2000);
+      if (refreshWithLiveLocation) {
+        refreshActiveAlertLocation(activeAlertId);
+      }
+      return;
+    }
+    setStatus(data.message || 'Could not activate SOS.', 'danger');
+    sosRequestInFlight = false;
+    document.getElementById('send-location').disabled = false;
+  }).catch(() => {
+    setStatus('Error sending location.', 'danger');
+    sosRequestInFlight = false;
+    document.getElementById('send-location').disabled = false;
+  });
+}
+
+function sendLocation() {
+  if (activeAlertId) {
+    setStatus('SOS is already active. Complete current alert before creating a new one.', 'warning');
+    return;
+  }
+  if (sosRequestInFlight) {
+    setStatus('SOS request already in progress. Please wait...', 'warning');
+    return;
+  }
+  if (!navigator.geolocation) {
+    setStatus('Geolocation is not supported by your browser.', 'danger');
+    return;
+  }
+  sosRequestInFlight = true;
+  document.getElementById('send-location').disabled = true;
+  setStatus('Activating SOS now...', 'info');
+
+  const cachedFresh = lastKnownLocation && (Date.now() - lastKnownLocation.at < 120000);
+  if (cachedFresh) {
+    dispatchSOS(lastKnownLocation.lat, lastKnownLocation.lon, true);
+    cacheCurrentLocation();
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition((position) => {
+    const lat = position.coords.latitude;
+    const lon = position.coords.longitude;
+    lastKnownLocation = {lat, lon, at: Date.now()};
+    dispatchSOS(lat, lon, false);
+  }, () => {
+    if (lastKnownLocation) {
+      setStatus('Using recent location to activate SOS...', 'warning');
+      dispatchSOS(lastKnownLocation.lat, lastKnownLocation.lon, true);
+      return;
+    }
+    setStatus('Unable to read location quickly. Please allow location permission and try again.', 'danger');
+    sosRequestInFlight = false;
+    document.getElementById('send-location').disabled = false;
+  }, {
+    enableHighAccuracy: false,
+    maximumAge: 120000,
+    timeout: 2500
+  });
+}
+
+function markSafe() {
+  if (!activeAlertId) return;
+  fetch('/api/sos/respond', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({alert_id: activeAlertId})
+  }).then(r => r.json()).then(data => {
+    if (data.status === 'fake_alert') {
+      setStatus('You responded in time. Alert marked fake, no ambulance dispatched.', 'success');
+      document.getElementById('mark-safe').style.display = 'none';
+      document.getElementById('start-voice-guide').style.display = 'none';
+      document.getElementById('stop-voice-guide').style.display = 'none';
+      document.getElementById('next-step').style.display = 'none';
+      document.getElementById('repeat-step').style.display = 'none';
+      if (statusPoll) {
+        clearInterval(statusPoll);
+        statusPoll = null;
+      }
+      stopVoiceGuide();
+      activeAlertId = null;
+      sosRequestInFlight = false;
+      document.getElementById('send-location').disabled = false;
+    } else {
+      setStatus(data.message || 'Could not mark alert safe.', 'danger');
+    }
+  }).catch(() => setStatus('Error sending your response.', 'danger'));
+}
+
+document.getElementById('guide-language').addEventListener('change', (e) => setLanguage(e.target.value, false));
+document.getElementById('detect-language').addEventListener('click', detectLanguageByVoice);
+document.getElementById('send-location').addEventListener('click', sendLocation);
+document.getElementById('mark-safe').addEventListener('click', markSafe);
+document.getElementById('start-voice-guide').addEventListener('click', startVoiceGuide);
+document.getElementById('stop-voice-guide').addEventListener('click', stopVoiceGuide);
+document.getElementById('next-step').addEventListener('click', nextStep);
+document.getElementById('repeat-step').addEventListener('click', repeatStep);
+document.getElementById('test-voice').addEventListener('click', () => {
+  if (!unlockSpeech()) return;
+  const samples = {
+    en: 'Voice test successful. Say completed after each step.',
+    hi: '\u0935\u0949\u0907\u0938 \u091f\u0947\u0938\u094d\u091f \u0938\u092b\u0932 \u0939\u0948\u0964 \u0939\u0930 \u0938\u094d\u091f\u0947\u092a \u0915\u0947 \u092c\u093e\u0926 completed \u092c\u094b\u0932\u0947\u0902\u0964',
+    te: '\u0c35\u0c3e\u0c2f\u0c3f\u0c38\u0c4d \u0c1f\u0c46\u0c38\u0c4d\u0c1f\u0c4d \u0c38\u0c2b\u0c32\u0c02. \u0c2a\u0c4d\u0c30\u0c24\u0c3f \u0c38\u0c4d\u0c1f\u0c46\u0c2a\u0c4d \u0c24\u0c30\u0c4d\u0c35\u0c3e\u0c24 completed \u0c05\u0c28\u0c3f \u0c1a\u0c46\u0c2a\u0c4d\u0c2a\u0c02\u0c21\u0c3f\u0964',
+    ta: '\u0b95\u0bc1\u0bb0\u0bb2\u0bcd \u0b9a\u0bcb\u0ba4\u0ba9\u0bc8 \u0bb5\u0bc6\u0bb1\u0bcd\u0bb1\u0bbf\u0b95\u0bb0\u0bae\u0bbe\u0ba9\u0ba4\u0bc1. \u0b92\u0bb5\u0bcd\u0bb5\u0bca\u0bb0\u0bc1 \u0bb8\u0bcd\u0b9f\u0bc6\u0baa\u0bcd \u0bae\u0bc1\u0b9f\u0bbf\u0ba8\u0bcd\u0ba4\u0baa\u0bbf\u0ba9\u0bcd completed \u0b8e\u0ba9\u0bcd\u0bb1\u0bc1 \u0b9a\u0bca\u0bb2\u0bcd\u0bb2\u0bc1\u0b99\u0bcd\u0b95\u0bb3\u0bcd.'
+  };
+  speakNow(extraVoiceSamples[currentLang] || samples[currentLang] || samples.en);
+  setVoiceGuideStatus(`Voice test successful (${languageMeta[currentLang].label}).`, 'success');
+});
+
+if ('speechSynthesis' in window) {
+  window.speechSynthesis.onvoiceschanged = () => { activeVoice = pickVoiceFor(currentLang); };
+}
+
+(() => {
+  const navLang = (navigator.language || '').toLowerCase();
+  if (navLang.startsWith('hi')) currentLang = 'hi';
+  else if (navLang.startsWith('te')) currentLang = 'te';
+  else if (navLang.startsWith('ta')) currentLang = 'ta';
+  else if (navLang.startsWith('kn')) currentLang = 'kn';
+  else if (navLang.startsWith('mr')) currentLang = 'mr';
+  else if (navLang.startsWith('bn')) currentLang = 'bn';
+  else currentLang = 'en';
+  document.getElementById('guide-language').value = currentLang;
+  cacheCurrentLocation();
+})();
+</script>
+{% endblock %}

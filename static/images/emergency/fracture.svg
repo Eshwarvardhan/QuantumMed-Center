@@ -1,0 +1,10 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500">
+  <rect width="800" height="500" fill="#f8f8ff"/>
+  <rect x="140" y="100" width="520" height="290" rx="24" fill="#fff" stroke="#b7b7e6" stroke-width="4"/>
+  <circle cx="280" cy="190" r="34" fill="#ffcc80"/>
+  <rect x="250" y="225" width="60" height="110" rx="18" fill="#4e79a7"/>
+  <rect x="330" y="250" width="180" height="26" rx="10" fill="#8d99ae"/>
+  <rect x="520" y="230" width="80" height="70" rx="14" fill="#59a14f"/>
+  <text x="200" y="355" font-size="28" font-family="Arial" fill="#444">Keep Still</text>
+  <text x="215" y="455" font-size="36" font-family="Arial" fill="#4b4ba5">Fracture and Head Injury</text>
+</svg>

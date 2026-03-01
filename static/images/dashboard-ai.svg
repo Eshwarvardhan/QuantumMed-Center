@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600">
+  <defs>
+    <linearGradient id="g4" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#312e81"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="600" fill="url(#g4)"/>
+  <rect x="170" y="130" width="460" height="340" rx="28" fill="#ede9fe"/>
+  <circle cx="300" cy="250" r="54" fill="#a78bfa"/>
+  <circle cx="500" cy="250" r="54" fill="#a78bfa"/>
+  <rect x="280" y="345" width="240" height="36" rx="18" fill="#8b5cf6"/>
+  <rect x="355" y="95" width="90" height="70" rx="12" fill="#c4b5fd"/>
+  <text x="690" y="245" font-family="Segoe UI, Arial, sans-serif" font-size="78" fill="#ffffff" font-weight="700">AI Assistant</text>
+  <text x="690" y="320" font-family="Segoe UI, Arial, sans-serif" font-size="34" fill="#ede9fe">Smart support for your workflow</text>
+</svg>

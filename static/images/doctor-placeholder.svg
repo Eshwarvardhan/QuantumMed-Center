@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" role="img" aria-label="Doctor">
+  <rect width="300" height="300" fill="#eef4ff"/>
+  <circle cx="150" cy="110" r="58" fill="#ffd8b5"/>
+  <path d="M92 108c0-37 26-64 58-64s58 27 58 64c-13-16-34-26-58-26s-45 10-58 26z" fill="#2e3a59"/>
+  <rect x="82" y="180" width="136" height="100" rx="20" fill="#ffffff" stroke="#c8d6f0" stroke-width="4"/>
+  <rect x="143" y="196" width="14" height="54" fill="#d81b60"/>
+  <rect x="123" y="216" width="54" height="14" fill="#d81b60"/>
+  <text x="150" y="286" text-anchor="middle" fill="#5c6f91" font-family="Arial, sans-serif" font-size="22" font-weight="700">DOCTOR</text>
+</svg>

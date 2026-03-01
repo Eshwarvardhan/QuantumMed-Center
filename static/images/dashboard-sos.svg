@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600">
+  <defs>
+    <linearGradient id="g3" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ef4444"/>
+      <stop offset="100%" stop-color="#7f1d1d"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="600" fill="url(#g3)"/>
+  <circle cx="360" cy="300" r="190" fill="#fee2e2"/>
+  <polygon points="360,180 495,420 225,420" fill="#ef4444"/>
+  <rect x="345" y="255" width="30" height="95" rx="10" fill="#ffffff"/>
+  <circle cx="360" cy="380" r="16" fill="#ffffff"/>
+  <text x="690" y="245" font-family="Segoe UI, Arial, sans-serif" font-size="78" fill="#ffffff" font-weight="700">Emergency SOS</text>
+  <text x="690" y="320" font-family="Segoe UI, Arial, sans-serif" font-size="34" fill="#fee2e2">Rapid help and location alert</text>
+</svg>

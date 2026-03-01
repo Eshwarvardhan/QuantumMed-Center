@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600">
+  <defs>
+    <linearGradient id="g2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#22c55e"/>
+      <stop offset="100%" stop-color="#166534"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="600" fill="url(#g2)"/>
+  <rect x="150" y="120" width="460" height="360" rx="24" fill="#dcfce7"/>
+  <rect x="150" y="120" width="460" height="90" rx="24" fill="#86efac"/>
+  <circle cx="230" cy="165" r="22" fill="#166534"/>
+  <circle cx="320" cy="165" r="22" fill="#166534"/>
+  <rect x="220" y="255" width="120" height="80" rx="12" fill="#22c55e"/>
+  <rect x="370" y="255" width="120" height="80" rx="12" fill="#bbf7d0"/>
+  <rect x="220" y="355" width="270" height="26" rx="10" fill="#86efac"/>
+  <text x="690" y="245" font-family="Segoe UI, Arial, sans-serif" font-size="70" fill="#ffffff" font-weight="700">Appointments</text>
+  <text x="690" y="320" font-family="Segoe UI, Arial, sans-serif" font-size="34" fill="#dcfce7">Schedule and visit planning</text>
+</svg>

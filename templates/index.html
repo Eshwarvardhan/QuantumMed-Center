@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="jumbotron text-center text-white hero-text">
+  <h1 class="display-4 hero-heading">Welcome to QuantumMed Center</h1>
+  <p class="lead hero-subtext">Advanced care, intelligent workflows, and faster emergency response in one place.</p>
+  <p class="font-italic mb-3">"Precision in care. Compassion in every heartbeat."</p>
+  <hr class="my-4" style="border-color: rgba(255,255,255,0.5);">
+  {% if not current_user.is_authenticated %}
+  <a class="btn btn-primary btn-lg" href="{{ url_for('login') }}" role="button">Login</a>
+  <a class="btn btn-secondary btn-lg" href="{{ url_for('register') }}" role="button">Register</a>
+  {% else %}
+  <a class="btn btn-primary btn-lg" href="{{ url_for('dashboard') }}" role="button">Go to Dashboard</a>
+  {% endif %}
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <h4 class="mb-0">Doctor Details</h4>
+      <a href="{{ url_for('doctors') }}" class="btn btn-outline-primary btn-sm">View All</a>
+    </div>
+    {% if doctors_preview %}
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover mb-0">
+        <thead>
+          <tr>
+            <th>Photo</th>
+            <th>Name</th>
+            <th>Specialization</th>
+            <th>Qualification</th>
+            <th>Experience</th>
+            <th>Availability</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in doctors_preview %}
+          <tr>
+            <td>
+              <img
+                src="{{ d.photo_url or url_for('static', filename='images/hos.jpg') }}"
+                alt="{{ d.name }}"
+                style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid #dee2e6;"
+                onerror="this.onerror=null;this.src='{{ url_for('static', filename='images/hos.jpg') }}';"
+              >
+            </td>
+            <td>{{ d.name }}</td>
+            <td>{{ d.specialization or '-' }}</td>
+            <td>{{ d.qualification or '-' }}</td>
+            <td>{% if d.experience_years is not none %}{{ d.experience_years }} years{% else %}-{% endif %}</td>
+            <td>{{ d.availability or '-' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info mb-0">Doctor details are not added yet.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

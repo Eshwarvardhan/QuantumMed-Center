@@ -1,0 +1,9 @@
+Built-in dashboard images are already added in this folder:
+
+1) dashboard-patients.svg
+2) dashboard-appointments.svg
+3) dashboard-sos.svg
+4) dashboard-ai.svg
+
+You can replace them with your own files using the same names.
+If any file is missing, the dashboard will automatically show hos.jpg as fallback.

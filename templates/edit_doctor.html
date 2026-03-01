@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Edit Doctor</h2>
+<form method="POST">
+    {{ form.hidden_tag() }}
+    <div class="form-group">
+        {{ form.name.label }} {{ form.name(class="form-control") }}
+    </div>
+    <div class="form-group">
+        {{ form.specialization.label }} {{ form.specialization(class="form-control") }}
+    </div>
+    <div class="form-group">
+        {{ form.problems_treated.label }} {{ form.problems_treated(class="form-control") }}
+    </div>
+    <div class="form-group">
+        {{ form.photo_url.label }} {{ form.photo_url(class="form-control") }}
+    </div>
+    <div class="form-group">
+        {{ form.qualification.label }} {{ form.qualification(class="form-control") }}
+    </div>
+    <div class="form-group">
+        {{ form.experience_years.label }} {{ form.experience_years(class="form-control") }}
+    </div>
+    <div class="form-group">
+        {{ form.phone.label }} {{ form.phone(class="form-control") }}
+    </div>
+    <div class="form-group">
+        {{ form.email.label }} {{ form.email(class="form-control") }}
+    </div>
+    <div class="form-group">
+        {{ form.availability.label }} {{ form.availability(class="form-control") }}
+    </div>
+    {{ form.submit(class="btn btn-primary", value="Update Doctor") }}
+    <a href="{{ url_for('doctors') }}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}
