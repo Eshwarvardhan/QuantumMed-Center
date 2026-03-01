@@ -1,8 +1,0 @@
-Flask
-Flask-Login
-Flask-SQLAlchemy
-Flask-WTF
-WTForms
-requests
-openai
-python-dotenv
