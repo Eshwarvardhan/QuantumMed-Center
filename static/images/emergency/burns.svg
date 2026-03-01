@@ -1,9 +1,0 @@
-﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500">
-  <rect width="800" height="500" fill="#eaf8ff"/>
-  <rect x="120" y="120" width="250" height="250" rx="30" fill="#b7e3ff"/>
-  <path d="M240 180 C270 220, 220 250, 245 290" fill="none" stroke="#1f77b4" stroke-width="18" stroke-linecap="round"/>
-  <rect x="430" y="120" width="250" height="250" rx="30" fill="#fff" stroke="#8cc4e8" stroke-width="4"/>
-  <path d="M540 175 C580 230, 510 260, 545 315" fill="none" stroke="#e15759" stroke-width="18" stroke-linecap="round"/>
-  <text x="470" y="350" font-size="28" font-family="Arial" fill="#1f4f8f">Cool with Water</text>
-  <text x="290" y="455" font-size="36" font-family="Arial" fill="#1a5f8f">Burn First Aid</text>
-</svg>
